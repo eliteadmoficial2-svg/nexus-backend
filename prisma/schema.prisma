@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  username      String?   @unique
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  avatarUrl     String?   @map("avatar_url")
+  role          String    @default("USER") // "USER" or "ADMIN"
+  isBanned      Boolean   @default(false) @map("is_banned")
+  bio           String?
+  city          String?
+  expertise     String?   @map("area_of_expertise") // Estudo, Negócio, Treino, Trabalho
+  title         String?   @default("Persistente")
+  badges        Json?     @default("[]") // JSON array of badges
+  
+  // Stats
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  streakDays    Int       @default(0) @map("streak_days")
+  totalMinutes  Int       @default(0) @map("total_minutes")
+  totalWorkouts Int       @default(0) @map("total_workouts")
+  totalProjects Int       @default(0) @map("total_projects")
+  
+  // Social Metrics
+  followersCount Int      @default(0) @map("followers_count")
+  followingCount Int      @default(0) @map("following_count")
+  friendsCount   Int      @default(0) @map("friends_count")
+  
+  // Reputation
+  consistencyScore Float  @default(0) @map("consistency_score")
+  
+  // Privacy Settings
+  isPublic      Boolean   @default(true) @map("is_public")
+  showProgress  Boolean   @default(true) @map("show_progress")
+  showTimeline  Boolean   @default(true) @map("show_timeline")
+  
+  // Financial
+  balance       Float     @default(0)
+  walletAddress String?   @unique @map("wallet_address")
+  
+  createdAt     DateTime  @default(now()) @map("created_at")
+  
+  habits        Habit[]
+  activities    Activity[]
+  rankings      Ranking[]
+  reports       Report[]
+  goals         Goal[]
+  comments      Comment[]
+  reactions     Reaction[]
+  stories       Story[]
+  territories   Territory[] @relation("UserTerritories")
+  runs          Run[]
+  
+  sentTransactions     Transaction[] @relation("sender")
+  receivedTransactions Transaction[] @relation("receiver")
+
+  followedBy    Follows[] @relation("following")
+  following     Follows[] @relation("follower")
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  senderId    String?  @map("sender_id")
+  sender      User?    @relation("sender", fields: [senderId], references: [id])
+  receiverId  String   @map("receiver_id")
+  receiver    User     @relation("receiver", fields: [receiverId], references: [id])
+  amount      Float
+  netAmount   Float    @map("net_amount")
+  taxAmount   Float    @map("tax_amount")
+  type        String   @default("TRANSFER") // 'TRANSFER', 'BUY', 'SELL', 'REWARD', 'ACTIVITY_REWARD', 'HABIT_COMPLETED'
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("transactions")
+}
+
+model GlobalStats {
+  id                 String   @id @default(uuid())
+  totalBurned        Float    @default(0) @map("total_burned")
+  treasuryBalance    Float    @default(0) @map("treasury_balance")
+  operationalRevenue Float    @default(0) @map("operational_revenue")
+  circulatingSupply  Float    @default(0) @map("circulating_supply")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("global_stats")
+}
+
+model Follows {
+  follower    User     @relation("follower", fields: [followerId], references: [id])
+  followerId  String   @map("follower_id")
+  following   User     @relation("following", fields: [followingId], references: [id])
+  followingId String   @map("following_id")
+
+  assignedAt  DateTime @default(now()) @map("assigned_at")
+
+  @@id([followerId, followingId])
+  @@map("follows")
+}
+
+model Activity {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  type          String   // 'study', 'workout', 'work', 'project', 'reading'
+  title         String
+  description   String?
+  duration      Int      // in minutes
+  category      String
+  focusTag      String?  @map("focus_tag")
+  imageUrl      String?  @map("image_url")
+  mediaType     String   @default("image") @map("media_type") // 'image' ou 'video'
+  views         Int      @default(0)
+  commentsCount Int      @default(0) @map("comments_count")
+  shares        Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  comments      Comment[]
+  reactions     Reaction[]
+
+  @@map("activities")
+}
+
+model Story {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  mediaUrl      String   @map("media_url")
+  mediaType     String   @map("media_type") // 'image', 'video', 'text'
+  caption       String?
+  style         Json?    @default("{}") // JSON object para StoryStyle
+  filter        String?  @default("none")
+  duration      Int      @default(15)
+  createdAt     DateTime @default(now()) @map("created_at")
+  expiresAt     DateTime @map("expires_at")
+  viewedBy      Json?    @default("[]") @map("viewed_by") // JSON array de IDs de usuários
+
+  @@map("stories")
+}
+
+model Goal {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  title         String
+  description   String?
+  type          String   // 'SHORT', 'LONG', 'ANNUAL', 'PERFORMANCE'
+  targetValue   Float    @map("target_value")
+  currentValue  Float    @default(0) @map("current_value")
+  unit          String   @default("%")
+  completed     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("goals")
+}
+
+model Territory {
+  id               String   @id @default(uuid())
+  cityId           String?  @map("city_id")
+  latitude         Float
+  longitude        Float
+  gridId           String   @unique @map("grid_id")
+  ownerUserId      String?  @map("owner_user_id")
+  owner            User?    @relation("UserTerritories", fields: [ownerUserId], references: [id])
+  lastConqueredAt  DateTime? @map("last_conquered_at")
+  conquestCount    Int      @default(0) @map("conquest_count")
+
+  @@map("territories")
+}
+
+model Run {
+  id             String     @id @default(uuid())
+  userId         String     @map("user_id")
+  user           User       @relation(fields: [userId], references: [id])
+  startTime      DateTime   @default(now()) @map("start_time")
+  endTime        DateTime?  @map("end_time")
+  distance       Float      @default(0) // em km
+  avgSpeed       Float?     @map("avg_speed") // km/h
+  routePolyline  String?    @map("route_polyline")
+  points         RunPoint[]
+  status         String     @default("active") // 'active', 'completed'
+
+  @@map("runs")
+}
+
+model RunPoint {
+  id        String   @id @default(uuid())
+  runId     String   @map("run_id")
+  run       Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  latitude  Float
+  longitude Float
+  timestamp DateTime @default(now())
+
+  @@map("run_points")
+}
+
+model Habit {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  description String?
+  category    String   @default("OTHER")
+  frequency   String   @default("DAILY")
+  targetValue Int      @default(1) @map("target_value")
+  currentValue Float    @default(0) @map("current_value")
+  unit        String   @default("vezes")
+  completed    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  progress    Progress[]
+  streak      Streak?
+
+  @@map("habits")
+}
+
+model Progress {
+  id        String   @id @default(uuid())
+  habitId   String   @map("habit_id")
+  habit     Habit    @relation(fields: [habitId], references: [id])
+  date      DateTime @default(now())
+  completed Boolean  @default(false)
+  score     Int      @default(0)
+
+  @@map("progress")
+}
+
+model Streak {
+  id                 String   @id @default(uuid())
+  habitId            String   @unique @map("habit_id")
+  habit              Habit    @relation(fields: [habitId], references: [id])
+  currentStreak      Int      @default(0) @map("current_streak")
+  bestStreak         Int      @default(0) @map("best_streak")
+  lastCompletedDate  DateTime? @map("last_completed_date")
+
+  @@map("streaks")
+}
+
+model Ranking {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  category    String   @default("GLOBAL")
+  weeklyScore Int      @default(0) @map("weekly_score")
+  month       Int
+  year        Int
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("ranking")
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  type        String
+  generatedAt DateTime @default(now()) @map("generated_at")
+  jsonData    Json     @map("json_data") // Changed from String to Json
+
+  @@map("reports")
+}
+
+model Comment {
+  id          String   @id @default(uuid())
+  content     String
+  userId      String   @map("user_id")
+  activityId  String   @map("activity_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id])
+  activity    Activity @relation(fields: [activityId], references: [id])
+
+  @@map("comments")
+}
+
+model Reaction {
+  id          String   @id @default(uuid())
+  type        String   // 'LIKE', 'RESPECT', 'FIRE'
+  userId      String   @map("user_id")
+  activityId  String   @map("activity_id")
+  user        User     @relation(fields: [userId], references: [id])
+  activity    Activity @relation(fields: [activityId], references: [id])
+
+  @@unique([userId, activityId, type])
+  @@map("reactions")
+}
