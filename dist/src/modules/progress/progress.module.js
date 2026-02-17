@@ -11,12 +11,13 @@ const common_1 = require("@nestjs/common");
 const progress_service_1 = require("./progress.service");
 const progress_controller_1 = require("./progress.controller");
 const ranking_module_1 = require("../ranking/ranking.module");
+const economy_module_1 = require("../economy/economy.module");
 let ProgressModule = class ProgressModule {
 };
 exports.ProgressModule = ProgressModule;
 exports.ProgressModule = ProgressModule = __decorate([
     (0, common_1.Module)({
-        imports: [ranking_module_1.RankingModule],
+        imports: [ranking_module_1.RankingModule, economy_module_1.EconomyModule],
         controllers: [progress_controller_1.ProgressController],
         providers: [progress_service_1.ProgressService],
     })

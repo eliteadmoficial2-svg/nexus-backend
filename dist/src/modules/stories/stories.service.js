@@ -70,7 +70,10 @@ let StoriesService = class StoriesService {
         });
         if (!story)
             return null;
-        let viewedBy = JSON.parse(story.viewedBy || '[]');
+        let viewedBy = [];
+        if (typeof story.viewedBy === 'string') {
+            viewedBy = JSON.parse(story.viewedBy);
+        }
         if (!viewedBy.includes(userId)) {
             viewedBy.push(userId);
             return this.prisma.story.update({

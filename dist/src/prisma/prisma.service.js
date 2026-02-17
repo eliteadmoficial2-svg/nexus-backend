@@ -11,7 +11,15 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 let PrismaService = class PrismaService extends client_1.PrismaClient {
     async onModuleInit() {
-        await this.$connect();
+        console.log('🔌 Tentando conectar ao banco de dados...');
+        try {
+            await this.$connect();
+            console.log('✅ Conexão com o banco de dados estabelecida com sucesso!');
+        }
+        catch (error) {
+            console.error('❌ Erro ao conectar ao banco de dados:', error);
+            throw error;
+        }
     }
     async onModuleDestroy() {
         await this.$disconnect();
